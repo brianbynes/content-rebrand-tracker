@@ -315,44 +315,6 @@ function rebrand_tracker_page() {
     <?php
 }
 
-// front-end highlight script
-add_action( 'wp_footer', 'rebrand_tracker_highlight_term_script' );
-function rebrand_tracker_highlight_term_script() {
-    ?>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var params = new URLSearchParams(window.location.search);
-        var term = params.get('rebrand_term');
-        if (term) {
-            // escape term and enforce whole-word with JS word boundaries
-            var termEscaped = term.replace(/[.*+?^${}()|\\[\\]\\\\]/g, '\\$&');
-            var regex = new RegExp('\\b' + termEscaped + '\\b', 'gi');
-            var walker = document.createTreeWalker(
-                document.body,
-                NodeFilter.SHOW_TEXT,
-                { acceptNode: function(node) {
-                    if (!node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
-                    return regex.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-                }}
-            );
-            var nodes = [];
-            var current;
-            while (current = walker.nextNode()) {
-                nodes.push(current);
-            }
-            nodes.forEach(function(textNode) {
-                var span = document.createElement('span');
-                span.innerHTML = textNode.nodeValue.replace(regex, function(m) {
-                    return '<mark style="background:magenta;color:white;font-size:150%;padding:2px 4px;border:2px dashed orange;box-shadow:0 0 5px red;transform:rotate(-2deg);display:inline-block;text-transform:uppercase;">' + m + '</mark>';
-                });
-                textNode.parentNode.replaceChild(span, textNode);
-            });
-        }
-    });
-    </script>
-    <?php
-}
-
 // AJAX handler to replace a single match
 add_action('wp_ajax_rebrand_tracker_replace_item', 'rebrand_tracker_replace_item_ajax');
 function rebrand_tracker_replace_item_ajax() {
@@ -404,4 +366,70 @@ function rebrand_tracker_replace_item_ajax() {
     // clear cache
     delete_transient( 'rebrand_tracker_matches' );
     wp_send_json_success();
+}
+
+// Front-end admin-bar dropdown for Rebrand controls
+add_action('admin_bar_menu','rebrand_tracker_admin_bar_menu',100);
+function rebrand_tracker_admin_bar_menu($wp_admin_bar){
+    if(!is_user_logged_in() || !is_admin_bar_showing() || !isset($_GET['rebrand_term'])) return;
+    $term = sanitize_text_field(wp_unslash($_GET['rebrand_term']));
+    $stored = isset($_COOKIE['rebrand_replaceTerm']) ? sanitize_text_field($_COOKIE['rebrand_replaceTerm']) : '';
+    $toggle_label = isset($_GET['rebrand_term']) ? 'Disable Highlight' : 'Enable Highlight';
+    // Parent menu
+    $wp_admin_bar->add_node([ 'id'=>'rebrand', 'title'=>'Rebrand', 'href'=>false, 'meta'=>['class'=>'menupop'] ]);
+    // Search term display
+    $wp_admin_bar->add_node([ 'id'=>'rebrand_search', 'parent'=>'rebrand', 'title'=>'Search: ' . esc_html($term), 'href'=>false ]);
+    // Replace input field
+    $wp_admin_bar->add_node([ 'id'=>'rebrand_input', 'parent'=>'rebrand', 'title'=>'<input id="rebrand_input" type="text" value="' . esc_attr($stored) . '" placeholder="Replace term" style="width:150px;" />', 'meta'=>['html'=>true] ]);
+    // Replace button
+    $wp_admin_bar->add_node([ 'id'=>'rebrand_replace', 'parent'=>'rebrand', 'title'=>'Replace', 'href'=>'#' ]);
+    // Toggle highlight button
+    $wp_admin_bar->add_node([ 'id'=>'rebrand_toggle', 'parent'=>'rebrand', 'title'=>$toggle_label, 'href'=>'#' ]);
+}
+
+// Footer script for Replace and Toggle actions
+add_action('wp_footer','rebrand_tracker_admin_bar_js',100);
+function rebrand_tracker_admin_bar_js(){
+    if(!is_user_logged_in() || !is_admin_bar_showing() || !isset($_GET['rebrand_term'])) return;
+    $term     = sanitize_text_field(wp_unslash($_GET['rebrand_term']));
+    $ajax_url = admin_url('admin-ajax.php');
+    $nonce    = wp_create_nonce('rebrand_tracker_nonce');
+    ?>
+    <script>
+    document.addEventListener('DOMContentLoaded',function(){
+        var term = '<?php echo esc_js($term);?>';
+        var input = document.getElementById('rebrand_input');
+        document.getElementById('wp-admin-bar-rebrand_replace')?.addEventListener('click', function(e){
+            e.preventDefault(); var r = input.value.trim(); if(!r) return alert('Enter replace term');
+            document.cookie = 'rebrand_replaceTerm=' + encodeURIComponent(r) + '; path=/';
+            fetch(term ? '<?php echo esc_js($ajax_url);?>' : '', {
+                method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                body:'action=rebrand_tracker_replace_item&nonce=<?php echo esc_js($nonce);?>'
+                    + '&context=post&id=<?php echo get_the_ID();?>'
+                    + '&term='+encodeURIComponent(term)
+                    + '&replace='+encodeURIComponent(r)
+            }).then(res=>res.json()).then(d=>{ if(d.success) location.search='?rebrand_term='+encodeURIComponent(term); else alert(d.data); });
+        });
+        document.getElementById('wp-admin-bar-rebrand_toggle')?.addEventListener('click',function(e){
+            e.preventDefault(); var p=new URLSearchParams(location.search);
+            p.has('rebrand_term')?p.delete('rebrand_term'):p.set('rebrand_term',term);
+            location.search = p.toString();
+        });
+    });
+    </script>
+    <?php
+}
+
+// Admin-bar submenu styling
+add_action('admin_head','rebrand_tracker_admin_bar_style');
+function rebrand_tracker_admin_bar_style(){
+    echo '<style>
+        /* Dark submenu background and white text */
+        #wpadminbar .ab-submenu { background: #23282d !important; }
+        #wpadminbar .ab-submenu .ab-item { color: #fff !important; padding: 4px 8px; }
+        /* Input and button styling */
+        #wpadminbar .ab-submenu input { width:100%; padding:4px; margin:4px 0; background:#fff; color:#000; border:1px solid #555; }
+        #wpadminbar .ab-submenu a { display:block; margin:4px 0; background:#0073aa; color:#fff; text-align:center; text-decoration:none; padding:6px; }
+        #wpadminbar .ab-submenu a:hover { background:#005177; }
+    </style>';
 }
