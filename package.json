@@ -1,0 +1,18 @@
+{
+  "name": "content-rebrand-tracker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "npx wp-scripts start js/src/index.js --output-path=js/build",
+    "build": "npx wp-scripts build js/src/index.js --output-path=js/build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@wordpress/scripts": "^30.15.0"
+  }
+}

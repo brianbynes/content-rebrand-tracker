@@ -1,0 +1,106 @@
+import { useState, useEffect, Fragment } from '@wordpress/element';
+import FilterBar from './components/FilterBar.js';
+import DataTable from './components/DataTable.js';
+import Pagination from './components/Pagination.js';
+
+const App = () => {
+    const [data, setData] = useState({ terms: [], matches: [] });
+    const [filter, setFilter] = useState('all');
+    const [page, setPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [replaceTerm, setReplaceTerm] = useState('');
+    const perPage = 20;
+
+    const fetchData = () => {
+        fetch(`${RebrandTrackerData.ajax_url}?action=rebrand_tracker_get_data&nonce=${RebrandTrackerData.nonce}`)
+            .then(res => res.json())
+            .then(res => res.success && setData(res.data));
+    };
+
+    useEffect(fetchData, []);
+
+    const handleSearch = () => {
+        if (!searchTerm.trim()) return;
+        const newTerms = [searchTerm.trim()];
+        fetch(RebrandTrackerData.ajax_url, {
+            method: 'POST',
+            body: new URLSearchParams({
+                action: 'rebrand_tracker_set_terms',
+                nonce: RebrandTrackerData.nonce,
+                terms: JSON.stringify(newTerms),
+            }),
+        })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    setSearchTerm('');
+                    setPage(1);
+                    fetchData();
+                }
+            });
+    };
+
+    // Handler to replace individual items
+    const handleReplaceItem = (item) => {
+        if (!replaceTerm.trim()) {
+            alert('Please enter a Replace term.');
+            return;
+        }
+        fetch(RebrandTrackerData.ajax_url, {
+            method: 'POST',
+            body: new URLSearchParams({
+                action: 'rebrand_tracker_replace_item',
+                nonce: RebrandTrackerData.nonce,
+                context: item.context,
+                id: item.ID,
+                term: item.term,
+                replace: replaceTerm.trim(),
+            }),
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) {
+                setReplaceTerm('');
+                setPage(1);
+                fetchData();
+            } else {
+                alert(res.data);
+            }
+        });
+    };
+
+    const filtered = data.matches.filter(m => filter === 'all' || m.context === filter);
+    const pages = Math.ceil(filtered.length / perPage);
+    const pageItems = filtered.slice((page-1)*perPage, page*perPage);
+
+    const handleExport = () => {
+        const url = `${RebrandTrackerData.ajax_url}?action=rebrand_tracker_export_csv&nonce=${RebrandTrackerData.nonce}&filter_term=${filter === 'all' ? '' : filter}&context=${filter}`;
+        window.location = url;
+    };
+
+    return (
+        <Fragment>
+            <div className="search-replace">
+                <input
+                    type="text"
+                    placeholder="Search term"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                />
+                <input
+                    type="text"
+                    placeholder="Replace term"
+                    value={replaceTerm}
+                    onChange={e => setReplaceTerm(e.target.value)}
+                />
+                <button onClick={handleSearch}>Search</button>
+            </div>
+            <h1>Content Rebrand Tracker</h1>
+            <FilterBar filter={filter} onFilterChange={value => { setFilter(value); setPage(1); }} onExport={handleExport} />
+            <DataTable items={pageItems} onReplace={handleReplaceItem} />
+            <Pagination page={page} pages={pages} onPageChange={setPage} />
+        </Fragment>
+    );
+};
+
+export default App;
