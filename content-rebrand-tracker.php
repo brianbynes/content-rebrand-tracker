@@ -373,14 +373,15 @@ add_action('admin_bar_menu','rebrand_tracker_admin_bar_menu',100);
 function rebrand_tracker_admin_bar_menu($wp_admin_bar){
     if(!is_user_logged_in() || !is_admin_bar_showing() || !isset($_GET['rebrand_term'])) return;
     $term = sanitize_text_field(wp_unslash($_GET['rebrand_term']));
+    // read stored replace term from cookie
     $stored = isset($_COOKIE['rebrand_replaceTerm']) ? sanitize_text_field($_COOKIE['rebrand_replaceTerm']) : '';
     $toggle_label = isset($_GET['rebrand_term']) ? 'Disable Highlight' : 'Enable Highlight';
     // Parent menu
     $wp_admin_bar->add_node([ 'id'=>'rebrand', 'title'=>'Rebrand', 'href'=>false, 'meta'=>['class'=>'menupop'] ]);
     // Search term display
     $wp_admin_bar->add_node([ 'id'=>'rebrand_search', 'parent'=>'rebrand', 'title'=>'Search: ' . esc_html($term), 'href'=>false ]);
-    // Replace input field
-    $wp_admin_bar->add_node([ 'id'=>'rebrand_input', 'parent'=>'rebrand', 'title'=>'<input id="rebrand_input" type="text" value="' . esc_attr($stored) . '" placeholder="Replace term" style="width:150px;" />', 'meta'=>['html'=>true] ]);
+    // Display stored replace term
+    $wp_admin_bar->add_node([ 'id'=>'rebrand_replace_term', 'parent'=>'rebrand', 'title'=>'Replace Term: ' . esc_html($stored), 'href'=>false ]);
     // Replace button
     $wp_admin_bar->add_node([ 'id'=>'rebrand_replace', 'parent'=>'rebrand', 'title'=>'Replace', 'href'=>'#' ]);
     // Toggle highlight button
@@ -398,16 +399,15 @@ function rebrand_tracker_admin_bar_js(){
     <script>
     document.addEventListener('DOMContentLoaded',function(){
         var term = '<?php echo esc_js($term);?>';
-        var input = document.getElementById('rebrand_input');
+        var stored = document.cookie.split('; ').find(row => row.startsWith('rebrand_replaceTerm='))?.split('=')[1] || '';
         document.getElementById('wp-admin-bar-rebrand_replace')?.addEventListener('click', function(e){
-            e.preventDefault(); var r = input.value.trim(); if(!r) return alert('Enter replace term');
-            document.cookie = 'rebrand_replaceTerm=' + encodeURIComponent(r) + '; path=/';
+            e.preventDefault(); if(!stored) return alert('No replace term stored');
             fetch(term ? '<?php echo esc_js($ajax_url);?>' : '', {
                 method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
                 body:'action=rebrand_tracker_replace_item&nonce=<?php echo esc_js($nonce);?>'
                     + '&context=post&id=<?php echo get_the_ID();?>'
                     + '&term='+encodeURIComponent(term)
-                    + '&replace='+encodeURIComponent(r)
+                    + '&replace='+encodeURIComponent(stored)
             }).then(res=>res.json()).then(d=>{ if(d.success) location.search='?rebrand_term='+encodeURIComponent(term); else alert(d.data); });
         });
         document.getElementById('wp-admin-bar-rebrand_toggle')?.addEventListener('click',function(e){
