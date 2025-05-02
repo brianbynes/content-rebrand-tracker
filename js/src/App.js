@@ -12,9 +12,17 @@ const App = () => {
     const perPage = 20;
 
     const fetchData = () => {
-        fetch(`${RebrandTrackerData.ajax_url}?action=rebrand_tracker_get_data&nonce=${RebrandTrackerData.nonce}`)
+        return fetch(`${RebrandTrackerData.ajax_url}?action=rebrand_tracker_get_data&nonce=${RebrandTrackerData.nonce}`)
             .then(res => res.json())
-            .then(res => res.success && setData(res.data));
+            .then(res => {
+                if (res.success) {
+                    setData(res.data);
+                    // Pre-fill search input with saved term if available
+                    if (res.data.terms && res.data.terms.length > 0) {
+                        setSearchTerm(res.data.terms[0]);
+                    }
+                }
+            });
     };
 
     useEffect(fetchData, []);
