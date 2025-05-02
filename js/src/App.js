@@ -113,7 +113,7 @@ const App = () => {
             </div>
             <h1>Content Rebrand Tracker</h1>
             <FilterBar filter={filter} onFilterChange={value => { setFilter(value); setPage(1); }} />
-            <DataTable items={pageItems} onReplace={handleReplaceItem} replacedItems={replacedItems} />
+            <DataTable items={pageItems} onReplace={handleReplaceItem} replacedItems={replacedItems} replaceTerm={replaceTerm} />
             <Pagination page={page} pages={pages} onPageChange={setPage} />
         </Fragment>
     );

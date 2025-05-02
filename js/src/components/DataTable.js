@@ -1,4 +1,4 @@
-const DataTable = ({ items, onReplace, replacedItems }) => (
+const DataTable = ({ items, onReplace, replacedItems, replaceTerm }) => (
     <table className="table">
         <thead>
             <tr>
@@ -38,7 +38,9 @@ const DataTable = ({ items, onReplace, replacedItems }) => (
                                     fontSize: '0.9em'
                                 }}>Replaced</span>
                             ) : (
-                                <button type="button" onClick={() => onReplace(m)}>Replace</button>
+                                replaceTerm.trim() ? (
+                                    <button type="button" onClick={() => onReplace(m)}>Replace</button>
+                                ) : null
                             )}
                         </td>
                     </tr>
