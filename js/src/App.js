@@ -33,7 +33,6 @@ const App = () => {
             .then(res => res.json())
             .then(res => {
                 if (res.success) {
-                    setSearchTerm('');
                     setPage(1);
                     fetchData();
                 }
