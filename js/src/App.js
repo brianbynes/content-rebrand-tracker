@@ -67,6 +67,16 @@ const App = () => {
             });
     };
 
+    // Handler to clear all persisted state
+    const handleClearMemory = () => {
+        // Remove from localStorage
+        localStorage.removeItem('rebrand_replaceTerm');
+        localStorage.removeItem('rebrand_replacedItems');
+        // Reset state
+        setReplaceTerm('');
+        setReplacedItems(new Set());
+    };
+
     // Handler to replace individual items
     const handleReplaceItem = (item) => {
         if (!replaceTerm.trim()) {
@@ -120,6 +130,7 @@ const App = () => {
                     onChange={e => setReplaceTerm(e.target.value)}
                 />
                 <button onClick={handleSearch}>Search</button>
+                <button type="button" onClick={handleClearMemory}>Clear All Memory</button>
             </div>
             <h1>Content Rebrand Tracker</h1>
             <FilterBar filter={filter} onFilterChange={value => { setFilter(value); setPage(1); }} />
