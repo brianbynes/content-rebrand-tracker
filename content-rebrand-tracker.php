@@ -91,78 +91,71 @@ function rebrand_tracker_set_terms_ajax() {
 
 // ── Match Scanning with Caching ──────────────────────────────────────
 function rebrand_tracker_get_matches( $filter_term = null ) {
-    $all = get_transient( 'rebrand_tracker_matches' );
+    // Always recalc matches (disable caching temporarily to fix matching issues)
+    delete_transient( 'rebrand_tracker_matches' );
+    $all = false;
     if ( $all === false ) {
         global $wpdb;
         $terms = rebrand_tracker_get_terms();
         $all   = [];
         foreach ( $terms as $term ) {
-            // build regex for whole-word match using MySQL word-boundary markers
-            $regex = '[[:<:]]' . preg_quote( $term, '/' ) . '[[:>:]]';
-
-            // $like no longer used; using $regex in queries
+            $pattern = '/\\b'.preg_quote($term,'/').'\\b/i';
 
             // Posts & Pages
-            $rows = $wpdb->get_results( $wpdb->prepare(
-                "SELECT ID, post_title, post_type
-                 FROM {$wpdb->posts}
-                 WHERE post_content REGEXP %s
-                   AND post_status = 'publish'
-                   AND post_type IN('post','page')",
-                $regex
-            ) );
-            foreach ( $rows as $r ) {
-                $key = "post-{$r->ID}-{$term}";
-                $all[ $key ] = [
-                    'context'  => 'post',
-                    'ID'       => $r->ID,
-                    'label'    => $r->post_title,
-                    'term'     => $term,
-                    'edit_url' => admin_url( "post.php?post={$r->ID}&action=edit" ),
-                    'view_url' => get_permalink( $r->ID ),
-                ];
+            $posts = get_posts([
+                'post_type'   => ['post','page'],
+                'post_status' => 'publish',
+                'numberposts' => -1
+            ]);
+            foreach ( $posts as $post ) {
+                if ( preg_match( $pattern, $post->post_content ) ) {
+                    $key = "post-{$post->ID}-{$term}";
+                    $all[ $key ] = [
+                        'context'  => 'post',
+                        'ID'       => $post->ID,
+                        'label'    => $post->post_title,
+                        'term'     => $term,
+                        'edit_url' => admin_url( "post.php?post={$post->ID}&action=edit" ),
+                        'view_url' => get_permalink( $post->ID ),
+                    ];
+                }
             }
 
             // Postmeta
-            $rows = $wpdb->get_results( $wpdb->prepare(
-                "SELECT meta_id, post_id, meta_key
-                 FROM {$wpdb->postmeta}
-                 WHERE meta_value REGEXP %s",
-                $regex
-            ) );
-            foreach ( $rows as $r ) {
-                $key = "meta-{$r->meta_id}-{$term}";
-                $all[ $key ] = [
-                    'context'  => 'meta',
-                    'post_id'  => $r->post_id,
-                    'meta_key' => $r->meta_key,
-                    'ID'       => $r->meta_id,
-                    'label'    => "Post {$r->post_id} — {$r->meta_key}",
-                    'term'     => $term,
-                    'edit_url' => admin_url( "post.php?post={$r->post_id}&action=edit" ),
-                    'view_url' => get_permalink( $r->post_id ),
-                ];
+            $meta_rows = $wpdb->get_results( "SELECT meta_id, post_id, meta_key, meta_value FROM {$wpdb->postmeta}" );
+            foreach ( $meta_rows as $r ) {
+                if ( preg_match( $pattern, $r->meta_value ) ) {
+                    $key = "meta-{$r->meta_id}-{$term}";
+                    $all[ $key ] = [
+                        'context'  => 'meta',
+                        'post_id'  => $r->post_id,
+                        'meta_key' => $r->meta_key,
+                        'ID'       => $r->meta_id,
+                        'label'    => "Post {$r->post_id} — {$r->meta_key}",
+                        'term'     => $term,
+                        'edit_url' => admin_url( "post.php?post={$r->post_id}&action=edit" ),
+                        'view_url' => get_permalink( $r->post_id ),
+                    ];
+                }
             }
 
             // Options
-            $rows = $wpdb->get_results( $wpdb->prepare(
-                "SELECT option_id, option_name
-                 FROM {$wpdb->options}
-                 WHERE option_value REGEXP %s",
-                $regex
-            ) );
-            foreach ( $rows as $r ) {
-                $key = "option-{$r->option_id}-{$term}";
-                $all[ $key ] = [
-                    'context'     => 'option',
-                    'option_name' => $r->option_name,
-                    'ID'          => $r->option_id,
-                    'label'       => "Option {$r->option_name}",
-                    'term'        => $term,
-                    'edit_url'    => admin_url( 'options-general.php' ),
-                    'view_url'    => admin_url( 'options-general.php' ),
-                ];
+            $opt_rows = $wpdb->get_results( "SELECT option_id, option_name, option_value FROM {$wpdb->options}" );
+            foreach ( $opt_rows as $r ) {
+                if ( preg_match( $pattern, $r->option_value ) ) {
+                    $key = "option-{$r->option_id}-{$term}";
+                    $all[ $key ] = [
+                        'context'     => 'option',
+                        'option_name' => $r->option_name,
+                        'ID'          => $r->option_id,
+                        'label'       => "Option {$r->option_name}",
+                        'term'        => $term,
+                        'edit_url'    => admin_url( 'options-general.php' ),
+                        'view_url'    => admin_url( 'options-general.php' ),
+                    ];
+                }
             }
+
         }
         set_transient( 'rebrand_tracker_matches', $all, HOUR_IN_SECONDS );
     }
