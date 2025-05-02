@@ -26,6 +26,15 @@ const App = () => {
     };
 
     useEffect(fetchData, []);
+    // Load persisted replace term from localStorage
+    useEffect(() => {
+        const saved = localStorage.getItem('rebrand_replaceTerm');
+        if (saved) setReplaceTerm(saved);
+    }, []);
+    // Persist replace term to localStorage on change
+    useEffect(() => {
+        localStorage.setItem('rebrand_replaceTerm', replaceTerm);
+    }, [replaceTerm]);
 
     const handleSearch = () => {
         if (!searchTerm.trim()) return;
