@@ -381,21 +381,72 @@ function rebrand_tracker_admin_bar_menu($wp_admin_bar){
     $wp_admin_bar->add_node([ 'id'=>'rebrand', 'title'=>'Rebrand', 'href'=>false, 'meta'=>['class'=>'menupop'] ]);
     // Search term display
     $wp_admin_bar->add_node([ 'id'=>'rebrand_search', 'parent'=>'rebrand', 'title'=>'Search: ' . esc_html($term), 'href'=>false ]);
-    // Display stored replace term
-    $wp_admin_bar->add_node([ 'id'=>'rebrand_replace_term', 'parent'=>'rebrand', 'title'=>'Replace Term: ' . esc_html($stored), 'href'=>false ]);
-    // Replace button
-    $wp_admin_bar->add_node([ 'id'=>'rebrand_replace', 'parent'=>'rebrand', 'title'=>'Replace', 'href'=>'#' ]);
     // Toggle highlight button
     $wp_admin_bar->add_node([ 'id'=>'rebrand_toggle', 'parent'=>'rebrand', 'title'=>$toggle_label, 'href'=>'#' ]);
 }
 // Inject CSS to hide highlights when disabled
-add_action('wp_head','rebrand_tracker_highlight_toggle_css');
-function rebrand_tracker_highlight_toggle_css(){
-    if(!is_user_logged_in()||!is_admin_bar_showing()||!isset($_GET['rebrand_term'])) return;
-    echo "<style>
-        .rebrand-highlight-off mark { display: none !important; }
-    </style>";
+// add_action('wp_head','rebrand_tracker_highlight_toggle_css');
+// function rebrand_tracker_highlight_toggle_css(){
+//     if(!is_user_logged_in()||!is_admin_bar_showing()||!isset($_GET['rebrand_term'])) return;
+//     echo "<style>
+//         /* Visible highlight styling */
+//         .rebrand-highlight { background: magenta; color: white; padding: 2px 4px; border: 2px dashed orange; box-shadow: 0 0 5px red; text-transform: uppercase; }
+//         /* Hide marks when toggled off */
+//         .rebrand-highlight-off mark { display: none !important; }
+//     </style>";
+// }
+// Combined front-end highlight injection (CSS + JS)
+add_action('wp_footer','rebrand_tracker_frontend_highlight',100);
+function rebrand_tracker_frontend_highlight(){
+    if ( ! isset($_GET['rebrand_term']) ) return;
+    $term = sanitize_text_field(wp_unslash($_GET['rebrand_term']));
+    ?>
+    <style>
+        /* Highlight styling */
+        .rebrand-highlight { background: magenta; color: white; padding: 2px 4px; border: 2px dashed orange; text-transform: uppercase; }
+        /* Disable highlight styling when toggled off, but keep text */
+        .rebrand-highlight-off .rebrand-highlight {
+            background: none !important;
+            color: inherit !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            text-transform: none !important;
+        }
+    </style>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var term = '<?php echo esc_js($term); ?>';
+        var pattern = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        var regex = new RegExp('\\b' + pattern + '\\b', 'gi');
+        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+            acceptNode: node => regex.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+        });
+        var nodes = [], n;
+        while (n = walker.nextNode()) nodes.push(n);
+        nodes.forEach(function(textNode) {
+            var span = document.createElement('span');
+            span.innerHTML = textNode.nodeValue.replace(regex, m => '<mark class="rebrand-highlight">'+m+'</mark>');
+            textNode.parentNode.replaceChild(span, textNode);
+        });
+    });
+    </script>
+    <?php
 }
+
+// Admin-bar submenu styling
+add_action('admin_head','rebrand_tracker_admin_bar_style');
+function rebrand_tracker_admin_bar_style(){
+    echo '<style>
+        /* Dark submenu background and white text */
+        #wpadminbar .ab-submenu { background: #23282d !important; }
+        #wpadminbar .ab-submenu .ab-item { color: #fff !important; padding: 4px 8px; }
+        /* Submenu button styling */
+        #wpadminbar .ab-submenu .button { display:block; width:100%; margin:4px 0; background:#0073aa; color:#fff; text-align:center; padding:6px; text-decoration:none; }
+        #wpadminbar .ab-submenu .button:hover { background:#005177; }
+    </style>';
+}
+
 // Footer script for Replace and Toggle actions
 add_action('wp_footer','rebrand_tracker_admin_bar_js',100);
 function rebrand_tracker_admin_bar_js(){
@@ -407,17 +458,6 @@ function rebrand_tracker_admin_bar_js(){
     <script>
     document.addEventListener('DOMContentLoaded',function(){
         var term = '<?php echo esc_js($term);?>';
-        var stored = document.cookie.split('; ').find(row => row.startsWith('rebrand_replaceTerm='))?.split('=')[1] || '';
-        document.getElementById('wp-admin-bar-rebrand_replace')?.addEventListener('click', function(e){
-            e.preventDefault(); if(!stored) return alert('No replace term stored');
-            fetch(term ? '<?php echo esc_js($ajax_url);?>' : '', {
-                method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-                body:'action=rebrand_tracker_replace_item&nonce=<?php echo esc_js($nonce);?>'
-                    + '&context=post&id=<?php echo get_the_ID();?>'
-                    + '&term='+encodeURIComponent(term)
-                    + '&replace='+encodeURIComponent(stored)
-            }).then(res=>res.json()).then(d=>{ if(d.success) location.search='?rebrand_term='+encodeURIComponent(term); else alert(d.data); });
-        });
         // Toggle highlight by adding/removing CSS class
         var toggle = document.querySelector('#wp-admin-bar-rebrand_toggle > a');
         if(toggle){
@@ -433,21 +473,7 @@ function rebrand_tracker_admin_bar_js(){
                 }
             });
         }
-    });
-    </script>
-    <?php
-}
-
-// Admin-bar submenu styling
-add_action('admin_head','rebrand_tracker_admin_bar_style');
-function rebrand_tracker_admin_bar_style(){
-    echo '<style>
-        /* Dark submenu background and white text */
-        #wpadminbar .ab-submenu { background: #23282d !important; }
-        #wpadminbar .ab-submenu .ab-item { color: #fff !important; padding: 4px 8px; }
-        /* Input and button styling */
-        #wpadminbar .ab-submenu input { width:100%; padding:4px; margin:4px 0; background:#fff; color:#000; border:1px solid #555; }
-        #wpadminbar .ab-submenu a { display:block; margin:4px 0; background:#0073aa; color:#fff; text-align:center; text-decoration:none; padding:6px; }
-        #wpadminbar .ab-submenu a:hover { background:#005177; }
-    </style>';
+     });
+     </script>
+     <?php
 }
