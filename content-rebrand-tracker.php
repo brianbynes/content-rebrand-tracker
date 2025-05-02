@@ -375,7 +375,8 @@ function rebrand_tracker_admin_bar_menu($wp_admin_bar){
     $term = sanitize_text_field(wp_unslash($_GET['rebrand_term']));
     // read stored replace term from cookie
     $stored = isset($_COOKIE['rebrand_replaceTerm']) ? sanitize_text_field($_COOKIE['rebrand_replaceTerm']) : '';
-    $toggle_label = isset($_GET['rebrand_term']) ? 'Disable Highlight' : 'Enable Highlight';
+    // Default toggle label; JS will update to Enable/Disable
+    $toggle_label = 'Disable Highlight';
     // Parent menu
     $wp_admin_bar->add_node([ 'id'=>'rebrand', 'title'=>'Rebrand', 'href'=>false, 'meta'=>['class'=>'menupop'] ]);
     // Search term display
@@ -387,7 +388,14 @@ function rebrand_tracker_admin_bar_menu($wp_admin_bar){
     // Toggle highlight button
     $wp_admin_bar->add_node([ 'id'=>'rebrand_toggle', 'parent'=>'rebrand', 'title'=>$toggle_label, 'href'=>'#' ]);
 }
-
+// Inject CSS to hide highlights when disabled
+add_action('wp_head','rebrand_tracker_highlight_toggle_css');
+function rebrand_tracker_highlight_toggle_css(){
+    if(!is_user_logged_in()||!is_admin_bar_showing()||!isset($_GET['rebrand_term'])) return;
+    echo "<style>
+        .rebrand-highlight-off mark { display: none !important; }
+    </style>";
+}
 // Footer script for Replace and Toggle actions
 add_action('wp_footer','rebrand_tracker_admin_bar_js',100);
 function rebrand_tracker_admin_bar_js(){
@@ -410,11 +418,21 @@ function rebrand_tracker_admin_bar_js(){
                     + '&replace='+encodeURIComponent(stored)
             }).then(res=>res.json()).then(d=>{ if(d.success) location.search='?rebrand_term='+encodeURIComponent(term); else alert(d.data); });
         });
-        document.getElementById('wp-admin-bar-rebrand_toggle')?.addEventListener('click',function(e){
-            e.preventDefault(); var p=new URLSearchParams(location.search);
-            p.has('rebrand_term')?p.delete('rebrand_term'):p.set('rebrand_term',term);
-            location.search = p.toString();
-        });
+        // Toggle highlight by adding/removing CSS class
+        var toggle = document.querySelector('#wp-admin-bar-rebrand_toggle > a');
+        if(toggle){
+            toggle.addEventListener('click', function(e){
+                e.preventDefault();
+                var html = document.documentElement;
+                if(html.classList.contains('rebrand-highlight-off')){
+                    html.classList.remove('rebrand-highlight-off');
+                    toggle.textContent = 'Disable Highlight';
+                } else {
+                    html.classList.add('rebrand-highlight-off');
+                    toggle.textContent = 'Enable Highlight';
+                }
+            });
+        }
     });
     </script>
     <?php
