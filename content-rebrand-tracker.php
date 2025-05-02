@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Content Rebrand Tracker
- * Description: Scan site content for configurable terms across posts, meta, and options. Admin-only, with term editing, context tabs, term filter, pagination, CSV export.
+ * Description: Scan site content for configurable terms across posts, meta, and options. Admin-only, with term editing, context tabs, term filter, pagination.
  * Version:     2.3
  * Author:      Brian (via ChatGPT)
  * Text Domain: rebrand-tracker
@@ -160,38 +160,6 @@ function rebrand_tracker_get_matches( $filter_term = null ) {
         set_transient( 'rebrand_tracker_matches', $all, HOUR_IN_SECONDS );
     }
     return $all;
-}
-
-// ── CSV Export ────────────────────────────────────────────────────────
-function rebrand_tracker_export_csv( $filter_term, $context ) {
-    if ( ! current_user_can( 'manage_options' ) ) {
-        wp_die( __( 'Permission denied', 'rebrand-tracker' ) );
-    }
-    check_admin_referer( 'rebrand_export', 'rebrand_nonce' );
-
-    $matches = rebrand_tracker_get_matches( $filter_term );
-    if ( $context !== 'all' ) {
-        $matches = array_filter( $matches, function( $m ) use ( $context ) {
-            return $m['context'] === $context;
-        } );
-    }
-
-    header( 'Content-Type: text/csv; charset=utf-8' );
-    header( 'Content-Disposition: attachment; filename=rebrand_matches.csv' );
-    $out = fopen( 'php://output', 'w' );
-    fputcsv( $out, [ 'Context', 'ID', 'Label', 'Term', 'Edit Link' ] );
-
-    foreach ( $matches as $m ) {
-        fputcsv( $out, [
-            $m['context'],
-            $m['ID'],
-            $m['label'],
-            $m['term'],
-            $m['edit_url'],
-        ] );
-    }
-    fclose( $out );
-    exit;
 }
 
 // Updated Admin Page with React Container

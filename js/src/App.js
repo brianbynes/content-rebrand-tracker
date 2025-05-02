@@ -9,6 +9,7 @@ const App = () => {
     const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
     const [replaceTerm, setReplaceTerm] = useState('');
+    const [replacedItems, setReplacedItems] = useState(new Set());
     const perPage = 20;
 
     const fetchData = () => {
@@ -77,8 +78,12 @@ const App = () => {
         .then(res => {
             if (res.success) {
                 setReplaceTerm('');
-                setPage(1);
-                fetchData();
+                // Mark item as replaced instead of removing it
+                setReplacedItems(prev => {
+                    const updated = new Set(prev);
+                    updated.add(`${item.context}-${item.ID}-${item.term}`);
+                    return updated;
+                });
             } else {
                 alert(res.data);
             }
@@ -88,11 +93,6 @@ const App = () => {
     const filtered = data.matches.filter(m => filter === 'all' || m.context === filter);
     const pages = Math.ceil(filtered.length / perPage);
     const pageItems = filtered.slice((page-1)*perPage, page*perPage);
-
-    const handleExport = () => {
-        const url = `${RebrandTrackerData.ajax_url}?action=rebrand_tracker_export_csv&nonce=${RebrandTrackerData.nonce}&filter_term=${filter === 'all' ? '' : filter}&context=${filter}`;
-        window.location = url;
-    };
 
     return (
         <Fragment>
@@ -112,8 +112,8 @@ const App = () => {
                 <button onClick={handleSearch}>Search</button>
             </div>
             <h1>Content Rebrand Tracker</h1>
-            <FilterBar filter={filter} onFilterChange={value => { setFilter(value); setPage(1); }} onExport={handleExport} />
-            <DataTable items={pageItems} onReplace={handleReplaceItem} />
+            <FilterBar filter={filter} onFilterChange={value => { setFilter(value); setPage(1); }} />
+            <DataTable items={pageItems} onReplace={handleReplaceItem} replacedItems={replacedItems} />
             <Pagination page={page} pages={pages} onPageChange={setPage} />
         </Fragment>
     );

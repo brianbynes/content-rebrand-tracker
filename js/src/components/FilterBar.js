@@ -1,6 +1,6 @@
 import { Fragment } from '@wordpress/element';
 
-const FilterBar = ({ filter, onFilterChange, onExport }) => (
+const FilterBar = ({ filter, onFilterChange }) => (
     <div className="filter-bar">
         <label>Context:</label>
         <select value={filter} onChange={e => onFilterChange(e.target.value)}>
@@ -9,7 +9,6 @@ const FilterBar = ({ filter, onFilterChange, onExport }) => (
             <option value="meta">Meta</option>
             <option value="option">Options</option>
         </select>
-        <button onClick={onExport}>Export CSV</button>
     </div>
 );
 
