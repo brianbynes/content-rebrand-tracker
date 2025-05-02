@@ -37,6 +37,16 @@ const App = () => {
         localStorage.setItem('rebrand_replaceTerm', replaceTerm);
     }, [replaceTerm]);
 
+    // Load persisted replaced items from localStorage
+    useEffect(() => {
+        const saved = localStorage.getItem('rebrand_replacedItems');
+        if (saved) setReplacedItems(new Set(JSON.parse(saved)));
+    }, []);
+    // Persist replaced items to localStorage on change
+    useEffect(() => {
+        localStorage.setItem('rebrand_replacedItems', JSON.stringify(Array.from(replacedItems)));
+    }, [replacedItems]);
+
     const handleSearch = () => {
         if (!searchTerm.trim()) return;
         const newTerms = [searchTerm.trim()];
