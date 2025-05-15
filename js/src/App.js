@@ -97,7 +97,8 @@ const App = () => {
         .then(res => res.json())
         .then(res => {
             if (res.success) {
-                setReplaceTerm('');
+                // keep the replaceTerm so it stays in the input
+                // setReplaceTerm('');
                 // Mark item as replaced instead of removing it
                 setReplacedItems(prev => {
                     const updated = new Set(prev);
