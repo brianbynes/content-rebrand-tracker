@@ -110,11 +110,14 @@ function rebrand_tracker_get_matches( $filter_term = null ) {
             foreach ( $posts as $post ) {
                 if ( preg_match( $pattern, $post->post_content ) ) {
                     $key = "post-{$post->ID}-{$term}";
+                    $instance_count = substr_count(strtolower($post->post_content), strtolower($term)); // Count instances of the term in the content
                     $all[ $key ] = [
                         'context'  => 'post',
                         'ID'       => $post->ID,
                         'label'    => $post->post_title,
+                        'author'   => get_the_author_meta( 'display_name', $post->post_author ),
                         'term'     => $term,
+                        'instances' => $instance_count, // Add the instance count
                         'edit_url' => admin_url( "post.php?post={$post->ID}&action=edit" ),
                         'view_url' => get_permalink( $post->ID ),
                     ];

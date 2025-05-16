@@ -4,8 +4,10 @@ const DataTable = ({ items, onReplace, replacedItems, replaceTerm }) => (
             <tr>
                 <th>Context</th>
                 <th>ID</th>
+                <th>Author</th>
                 <th>Label</th>
                 <th>Term</th>
+                <th>Instances</th>
                 <th>View</th>
                 <th>Replace</th>
             </tr>
@@ -15,11 +17,13 @@ const DataTable = ({ items, onReplace, replacedItems, replaceTerm }) => (
                 const keyStr = `${m.context}-${m.ID}-${m.term}`;
                 const isReplaced = replacedItems.has(keyStr);
                 return (
-                    <tr key={`${m.context}-${m.ID}-${m.term}`}>
+                    <tr key={`${m.context}-${m.ID}-${m.term}`}>   
                         <td>{m.context}</td>
                         <td>{m.ID}</td>
+                        <td>{m.author || ''}</td>
                         <td>{m.label}</td>
                         <td>{m.term}</td>
+                        <td>{m.instances || 0}</td>
                         <td>
                             <a
                                 href={`${m.view_url}${m.view_url.includes('?') ? '&' : '?'}rebrand_term=${encodeURIComponent(m.term)}`}
