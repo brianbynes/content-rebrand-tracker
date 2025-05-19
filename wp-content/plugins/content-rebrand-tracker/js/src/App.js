@@ -69,12 +69,80 @@ const App = () => {
 
     // Handler to clear all persisted state
     const handleClearMemory = () => {
+        // Show visual feedback that the operation is in progress
+        const button = document.querySelector('button[type="button"]');
+        const originalText = button.textContent;
+        button.textContent = 'Clearing...';
+        button.disabled = true;
+        
         // Remove from localStorage
         localStorage.removeItem('rebrand_replaceTerm');
         localStorage.removeItem('rebrand_replacedItems');
         // Reset state
         setReplaceTerm('');
         setReplacedItems(new Set());
+
+        // Send request to backend to clear plugin-specific data
+        fetch(RebrandTrackerData.ajax_url, {
+            method: 'POST',
+            body: new URLSearchParams({
+                action: 'clear_plugin_memory',
+                nonce: RebrandTrackerData.nonce
+            })
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) {
+                // Success notification with enhanced visual feedback
+                const notification = document.createElement('div');
+                notification.innerHTML = '<span style="font-size:18px">✓</span> Memory cleared successfully!';
+                notification.style.cssText = 'position:fixed; top:50px; left:50%; transform:translateX(-50%) scale(0.9); opacity:0; background:#4CAF50; color:white; padding:12px 24px; border-radius:4px; z-index:10000; box-shadow:0 3px 12px rgba(0,0,0,0.3); font-weight:bold; font-size:15px; display:flex; align-items:center; gap:8px; border-left:5px solid #2E7D32;';
+                document.body.appendChild(notification);
+                
+                // Animate in
+                setTimeout(() => {
+                    notification.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                    notification.style.transform = 'translateX(-50%) scale(1)';
+                    notification.style.opacity = '1';
+                }, 10);
+                
+                // Also flash the table briefly to indicate data refresh
+                const dataTable = document.querySelector('.table');
+                if (dataTable) {
+                    dataTable.style.transition = 'background-color 0.5s ease';
+                    dataTable.style.backgroundColor = '#e8f5e9';
+                    setTimeout(() => {
+                        dataTable.style.backgroundColor = '';
+                    }, 1000);
+                }
+                
+                // Remove notification after 3.5 seconds
+                setTimeout(() => {
+                    notification.style.transform = 'translateX(-50%) scale(0.9)';
+                    notification.style.opacity = '0';
+                    setTimeout(() => notification.remove(), 300);
+                }, 3500);
+                
+                // Refresh data
+                fetchData();
+            } else {
+                alert('Failed to clear memory: ' + (res.data || 'Unknown error'));
+            }
+            
+            // Reset button state
+            const button = document.querySelector('button[type="button"]');
+            button.textContent = 'Clear All Memory';
+            button.disabled = false;
+        })
+        .catch(error => {
+            console.error('Error clearing memory:', error);
+            alert('Error clearing memory. Please check console.');
+            
+            // Reset button on error
+            const button = document.querySelector('button[type="button"]');
+            button.textContent = 'Clear All Memory';
+            button.disabled = false;
+        });
     };
 
     // Handler to replace individual items

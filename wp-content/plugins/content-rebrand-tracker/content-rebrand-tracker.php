@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Content Rebrand Tracker
  * Description: Scan site content for configurable terms across posts, meta, and options. Admin-only, with term editing, context tabs, term filter, pagination.
- * Version:     2.3
+ * Version:     2.4
  * Author:      Brian (via ChatGPT)
  * Text Domain: rebrand-tracker
  */
@@ -479,4 +479,31 @@ function rebrand_tracker_admin_bar_js(){
      });
      </script>
      <?php
+}
+
+// Clear plugin-specific data from options table
+add_action('wp_ajax_clear_plugin_memory', 'clear_plugin_memory');
+function clear_plugin_memory() {
+    global $wpdb;
+
+    // Check for nonce
+    if (!check_ajax_referer('rebrand_tracker_nonce', 'nonce', false)) {
+        wp_send_json_error('Invalid security token.');
+        return;
+    }
+
+    // Delete plugin-specific data from wp_options
+    delete_option('rebrand_tracker_terms');
+    delete_transient('rebrand_tracker_matches');
+    
+    // Delete any other plugin-related options
+    $wpdb->query(
+        $wpdb->prepare(
+            "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+            'rebrand_tracker_%',
+            'content_rebrand_tracker_%'
+        )
+    );
+
+    wp_send_json_success('Memory cleared successfully.');
 }
