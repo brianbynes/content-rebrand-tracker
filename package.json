@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npx wp-scripts start js/src/index.js --output-path=js/build",
-    "build": "npx wp-scripts build js/src/index.js --output-path=js/build",
+    "start": "node_modules/.bin/wp-scripts start js/src/index.js --output-path=js/build",
+    "build": "node_modules/.bin/wp-scripts build js/src/index.js --output-path=js/build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

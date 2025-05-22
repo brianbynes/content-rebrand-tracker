@@ -26,14 +26,23 @@ function rebrand_tracker_add_admin_menu() {
 
 // Enqueue React App
 function rebrand_tracker_admin_enqueue() {
-    // Use build file modification time for cache busting
-    $script_path = plugin_dir_path( __FILE__ ) . 'js/build/index.js';
-    $script_version = file_exists( $script_path ) ? filemtime( $script_path ) : '1.0';
+    $script_asset_path = plugin_dir_path( __FILE__ ) . 'js/build/index.asset.php';
+    
+    if ( ! file_exists( $script_asset_path ) ) {
+        // Fallback if the asset file doesn't exist
+        $script_asset = array(
+            'dependencies' => array( 'wp-element' ),
+            'version'      => filemtime( plugin_dir_path( __FILE__ ) . 'js/build/index.js' ) ?: '1.0'
+        );
+    } else {
+        $script_asset = require( $script_asset_path );
+    }
+
     wp_enqueue_script(
         'rebrand-tracker-admin-app',
         plugins_url( 'js/build/index.js', __FILE__ ),
-        array( 'wp-element' ),
-        $script_version,
+        $script_asset['dependencies'],
+        $script_asset['version'],
         true
     );
     wp_localize_script( 'rebrand-tracker-admin-app', 'RebrandTrackerData', array(
