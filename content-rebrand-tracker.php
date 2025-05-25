@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Content Rebrand Tracker
  * Description: Scan site content for configurable terms across posts, meta, and options. Admin-only, with term editing, context tabs, term filter, pagination.
- * Version:     2.4
- * Author:      Brian (via ChatGPT)
+ * Version:     2.5
+ * Author:      Brian Bynes
  * Text Domain: rebrand-tracker
  */
 
@@ -108,11 +108,19 @@ function rebrand_tracker_get_matches( $filter_term = null ) {
         $terms = rebrand_tracker_get_terms();
         $all   = [];
         foreach ( $terms as $term ) {
-            $pattern = '/\\b'.preg_quote($term,'/').'\\b/i';
+            $pattern = '/\b'.preg_quote($term,'/').'\b/i';
 
             // Posts & Pages
+            // Get all public post types
+            $cpt_args = array(
+               'public'   => true,
+            );
+            $custom_post_types = get_post_types( $cpt_args, 'names', 'and' );
+            // Ensure 'post' and 'page' are included, and remove duplicates
+            $searchable_post_types = array_unique( array_merge( ['post', 'page'], array_values( $custom_post_types ) ) );
+
             $posts = get_posts([
-                'post_type'   => ['post','page'],
+                'post_type'   => $searchable_post_types,
                 'post_status' => 'publish',
                 'numberposts' => -1
             ]);
