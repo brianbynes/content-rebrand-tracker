@@ -1,15 +1,16 @@
-import { Fragment } from '@wordpress/element';
+import { memo } from '@wordpress/element';
 
 const FilterBar = ({ filter, onFilterChange }) => (
     <div className="filter-bar">
-        <label>Context:</label>
-        <select value={filter} onChange={e => onFilterChange(e.target.value)}>
+        <label htmlFor="context-filter">Filter by context:</label>
+        <select id="context-filter" value={filter} onChange={e => onFilterChange(e.target.value)}>
             <option value="all">All</option>
-            <option value="post">Posts/Pages</option>
+            <option value="post">Posts</option>
             <option value="meta">Meta</option>
+            <option value="yoast">Yoast</option> {/* Added Yoast option */}
             <option value="option">Options</option>
         </select>
     </div>
 );
 
-export default FilterBar;
+export default memo(FilterBar);

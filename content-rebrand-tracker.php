@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Content Rebrand Tracker
  * Description: Scan site content for configurable terms across posts, meta, and options. Admin-only, with term editing, context tabs, term filter, pagination.
- * Version:     2.5
+ * Version:     2.6
  * Author:      Brian Bynes
  * Text Domain: rebrand-tracker
  */
@@ -144,8 +144,13 @@ function rebrand_tracker_get_matches( $filter_term = null ) {
             // Postmeta
             $meta_rows = $wpdb->get_results( "SELECT meta_id, post_id, meta_key, meta_value FROM {$wpdb->postmeta}" );
             foreach ( $meta_rows as $r ) {
+                // Exclude Yoast meta from this generic meta search to avoid duplication
+                if ( strpos( $r->meta_key, '_yoast_wpseo_' ) === 0 ) {
+                    continue;
+                }
                 if ( preg_match( $pattern, $r->meta_value ) ) {
                     $key = "meta-{$r->meta_id}-{$term}";
+                    $instance_count = substr_count(strtolower($r->meta_value), strtolower($term));
                     $all[ $key ] = [
                         'context'  => 'meta',
                         'post_id'  => $r->post_id,
@@ -153,7 +158,35 @@ function rebrand_tracker_get_matches( $filter_term = null ) {
                         'ID'       => $r->meta_id,
                         'label'    => "Post {$r->post_id} — {$r->meta_key}",
                         'term'     => $term,
+                        'instances' => $instance_count,
                         'edit_url' => admin_url( "post.php?post={$r->post_id}&action=edit" ),
+                        'view_url' => get_permalink( $r->post_id ),
+                    ];
+                }
+            }
+
+            // Yoast SEO Meta
+            $yoast_meta_rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT meta_id, post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE meta_key LIKE %s",
+                '_yoast_wpseo_%'
+            ) );
+            foreach ( $yoast_meta_rows as $r ) {
+                if ( preg_match( $pattern, $r->meta_value ) ) {
+                    $key = "yoast-{$r->meta_id}-{$term}";
+                    $instance_count = substr_count(strtolower($r->meta_value), strtolower($term));
+                    // Attempt to get a more descriptive label for common Yoast fields
+                    $yoast_field_name = str_replace('_yoast_wpseo_', '', $r->meta_key);
+                    $yoast_field_name = ucwords(str_replace('-', ' ', $yoast_field_name));
+
+                    $all[ $key ] = [
+                        'context'  => 'yoast',
+                        'post_id'  => $r->post_id,
+                        'meta_key' => $r->meta_key,
+                        'ID'       => $r->meta_id,
+                        'label'    => "Yoast: {$yoast_field_name} (Post {$r->post_id})",
+                        'term'     => $term,
+                        'instances' => $instance_count,
+                        'edit_url' => admin_url( "post.php?post={$r->post_id}&action=edit" ), // Links to the post editor
                         'view_url' => get_permalink( $r->post_id ),
                     ];
                 }
@@ -365,6 +398,7 @@ function rebrand_tracker_replace_item_ajax() {
             wp_update_post([ 'ID' => $id, 'post_content' => $new ]);
             break;
         case 'meta':
+        case 'yoast': // Add 'yoast' case to handle it like 'meta'
             $row = $wpdb->get_row( $wpdb->prepare(
                 "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE meta_id = %d", $id
             ), ARRAY_A );
